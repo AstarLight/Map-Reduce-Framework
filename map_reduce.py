@@ -6,14 +6,19 @@
 import logging
 from time import sleep
 import multiprocessing as mp
+import numpy as np
+
+worker_num = 4
+test_matrix = np.random.randint(1,10,size=(worker_num,1000000))
 
 class MapReduceHandler(object):
-    self.in_channel
-    self.out_channel
-    self.reduce_in_channel
-    self.reduce_out_channel
-    self.t = None
-    self.services_channel_dict = {}
+    def __init__(self):
+        self.in_channel
+        self.out_channel
+        self.reduce_in_channel
+        self.reduce_out_channel
+        self.t = None
+        self.services_channel_dict = {}
 
     def __dispatch(self, task):
         for key in self.services_channel_dict:
@@ -22,8 +27,10 @@ class MapReduceHandler(object):
     # map reduce core
     def process(self, job):
         # 1. split a big job into several small tasks
-        total_sub_result_count = len(self.services_channel_dict)
         tasks_list = []
+        for i in range(test_matrix.cols):
+            tasks_list.append(test_matrix[i])
+        total_sub_result_count = len(self.services_channel_dict)
         # 2. dispatch tasks to workers process/server
         for task in tasks_list:
             __dispatch(task)
@@ -32,15 +39,18 @@ class MapReduceHandler(object):
         final_result = 0
         while True:
             ret_job = self.reduce_in_channel.pull_a_job()
-            sub_result = ret_job.get_field("result", -1)
-            if sub_result == -1:
-                is_calc_ok = False
-                break
-            count += 1
-            # 4. collect all sub results
-            final_result += sub_result
-            if count == total_sub_result_count:
-                break
+            if ret_job is not None:
+                sub_result = ret_job.get_field("result", -1)
+                if sub_result == -1:
+                    is_calc_ok = False
+                    break
+                count += 1
+                # 4. collect all sub results
+                final_result += sub_result
+                if count == total_sub_result_count:
+                    break
+            else:
+                sleep(0.05)
         # 5. return final result
         return (final_result, isCalcOK)
 
