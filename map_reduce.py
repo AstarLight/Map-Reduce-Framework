@@ -16,16 +16,33 @@ class MapReduceHandler(object):
     self.services_channel_dict = {}
 
     def __dispatch(self, task):
-
+        for key in self.services_channel_dict:
+            self.services_channel_dict[key].emit_a_job(task)
 
     # map reduce core
     def process(self, job):
         # 1. split a big job into several small tasks
+        total_sub_result_count = len(self.services_channel_dict)
+        tasks_list = []
         # 2. dispatch tasks to workers process/server
-        __dispatch(job)
+        for task in tasks_list:
+            __dispatch(task)
         # 3. wait for reduce result from workers(block)
-        # 4. collect all sub results
+        is_calc_ok = True
+        final_result = 0
+        while True:
+            ret_job = self.reduce_in_channel.pull_a_job()
+            sub_result = ret_job.get_field("result", -1)
+            if sub_result == -1:
+                is_calc_ok = False
+                break
+            count += 1
+            # 4. collect all sub results
+            final_result += sub_result
+            if count == total_sub_result_count:
+                break
         # 5. return final result
+        return (final_result, isCalcOK)
 
     def accept(self):
         logging.info("------ Map-Reduce Service Start ------")
