@@ -8,8 +8,6 @@ from time import sleep
 import multiprocessing as mp
 import numpy as np
 
-worker_num = 4
-test_matrix = np.random.randint(1,10,size=(worker_num,1000000))
 
 class MapReduceHandler(object):
     def __init__(self):
@@ -39,7 +37,7 @@ class MapReduceHandler(object):
     def __process_reduce(self, jobs):
         pass
 
-    def __accept(self):
+    def accept(self):
         logging.info("------ Map-Reduce Service Start ------")
         while True:
             job = self.in_channel.pull_a_job()
@@ -56,6 +54,7 @@ class MapReduceHandler(object):
                         if count == current_count:
                             logging.debug("We receive all reduce jobs!")
                             process_reduce(reduce_jobs)
+                            break
                     else:
                         sleep(0.05)
             else:
@@ -71,5 +70,9 @@ class MapReduceHandler(object):
         self.t = mp.Process(target=MapReduceHandler.accept, args=(self,))
         self.t.daemon = True
         self.t.start()
+
+    @property
+    def workers_num(self):
+        return len(self.services_channel_dict)
 
 

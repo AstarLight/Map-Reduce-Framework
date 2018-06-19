@@ -3,6 +3,8 @@
 # Date: 2018-06-18
 # Email: lijunshi2015@163.com
 
+''' standalone communication mode(IPC) '''
+
 from channel import channel
 import multiprocessing as mp
 
