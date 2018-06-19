@@ -25,17 +25,16 @@ class MapReduceHandler(object):
     # map reduce core
     @abstractmethod
     def __process_map(self, job):
-        map_count = 0
         # 1. split a big job into several small tasks
         # 2. dispatch tasks to workers process/server
         # 3. wait for reduce result from workers(block)
         # 4. collect all sub results
         # 5. return final result
-        return map_count
+        raise NotImplementedError
 
     @abstractmethod
     def __process_reduce(self, jobs):
-        pass
+        raise NotImplementedError
 
     def accept(self):
         logging.info("------ Map-Reduce Service Start ------")
