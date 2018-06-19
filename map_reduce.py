@@ -25,45 +25,41 @@ class MapReduceHandler(object):
             self.services_channel_dict[key].emit_a_job(task)
 
     # map reduce core
-    def process(self, job):
+    @abstractmethod
+    def __process_map(self, job):
+        map_count = 0
         # 1. split a big job into several small tasks
-        tasks_list = []
-        for i in range(test_matrix.cols):
-            tasks_list.append(test_matrix[i])
-        total_sub_result_count = len(self.services_channel_dict)
         # 2. dispatch tasks to workers process/server
-        for task in tasks_list:
-            __dispatch(task)
         # 3. wait for reduce result from workers(block)
-        is_calc_ok = True
-        final_result = 0
-        while True:
-            ret_job = self.reduce_in_channel.pull_a_job()
-            if ret_job is not None:
-                sub_result = ret_job.get_field("result", -1)
-                if sub_result == -1:
-                    is_calc_ok = False
-                    break
-                count += 1
-                # 4. collect all sub results
-                final_result += sub_result
-                if count == total_sub_result_count:
-                    break
-            else:
-                sleep(0.05)
+        # 4. collect all sub results
         # 5. return final result
-        return (final_result, isCalcOK)
+        return map_count
 
-    def accept(self):
+    @abstractmethod
+    def __process_reduce(self, jobs):
+        pass
+
+    def __accept(self):
         logging.info("------ Map-Reduce Service Start ------")
         while True:
             job = self.in_channel.pull_a_job()
             if job is not None:
                 logging.debug("Map-Reduce Service receives a job : %s", job.name)
-                self.process(job)
+                count = self.__process_map(job)
+                reduce_jobs = {}
+                current_count = 0
+                while True:
+                    ret_job = self.reduce_in_channel.pull_a_job()
+                    if ret_job is not None:
+                        reduce_jobs.append(ret_job)
+                        current_count +=1
+                        if count == current_count:
+                            logging.debug("We receive all reduce jobs!")
+                            process_reduce(reduce_jobs)
+                    else:
+                        sleep(0.05)
             else:
                 sleep(0.05)
-
 
     def register(self, service):
         if service.name not in self.services_channel_dict:

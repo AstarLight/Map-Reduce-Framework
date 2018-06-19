@@ -4,19 +4,18 @@
 # Email: lijunshi2015@163.com
 
 class Channel(object):
-
     @abstractmethod
     def init_channel(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def shutdown_channel(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def pull_a_job(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def emit_a_job(self, job):
-        pass
+        raise NotImplementedError
