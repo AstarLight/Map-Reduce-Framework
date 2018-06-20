@@ -7,6 +7,7 @@ import unittest
 from map_reduce import MapReduceHandler
 from job_descriptor import JobDescriptor
 from worker import Worker
+from standalone_channel import Standalone
 
 test_array = np.random.randint(10,size=10000000000)
 
@@ -52,11 +53,13 @@ class CalculatorService(MapReduceHandler):
 class MiniCalcWorker(Worker):
     def work(self, job):
         if job.get_field("name", None) != "mini-calc":
+            self.out_channel = job.get_field("return_channel", None)
             newjob = JobDescriptor()
             newjob.set_field("name", "server")
             newjob.set_field("status", "-1")
             self.out_channel.emit_a_job(newjob)
         else:
+            self.out_channel = job.get_field("return_channel", None)
             start = job.get_field("start", 0)
             end = job.get_field("end", 0)
             new_array = test_array[start:end]
@@ -67,12 +70,33 @@ class MiniCalcWorker(Worker):
             newjob.set_field("status", "1")
             self.out_channel.emit_a_job(newjob)
 
-class TestMapReduce(unittest.TestCase):
-    def SetUp(self):
-        pass
+class Client(unittest.TestCase):
+    def __init__(self):
+        self.send_channel = None
+        self.receive_channel = None
+        self.serial_sum = 0
 
-    def test_mapreduce(self):
-        pass
+    def Setup(self):
+        self.send_channel = Standalone()
+        self.receive_channel = None
+
+    def check(self, job):
+        final_sum = job.get_field("result", -1)
+        self.assertEqual(final_sum, self.serial_sum)
+
+    def run(self):
+        self.serial_sum = np.sum(test_array)
+        newjob = JobDescriptor()
+        newjob.set_field("array_size", len(test_array))
+        newjob.set_field("name", "server")
+        self.send_channel.emit_a_job(newjob)
+        while True:
+            job = self.receive_channel.pull_a_job()
+            if job is not None:
+                check(job)
+            else:
+                sleep(0.05)
+
 
 if __name__ == '__main__':
     unittest.main()

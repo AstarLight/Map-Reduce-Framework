@@ -14,7 +14,7 @@ class Worker(object):
         raise NotImplementedError
 
     def accept(self):
-        logging.info("------ Map-Reduce Service Start ------")
+        logging.info("------ Mini-Calc Service Start ------")
         while True:
             job = self.in_channel.pull_a_job()
             if job is not None:
