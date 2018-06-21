@@ -4,9 +4,10 @@
 # Email: lijunshi2015@163.com
 
 class Worker(object):
-    def __init__(self):
+    def __init__(self, name):
         self.in_channel = None
         self.out_channel = None
+        self.name = name
         self.t = None
 
     @abstractmethod

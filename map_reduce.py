@@ -11,10 +11,9 @@ import numpy as np
 
 class MapReduceHandler(object):
     def __init__(self):
-        self.in_channel
-        self.out_channel
-        self.reduce_in_channel
-        self.reduce_out_channel
+        self.in_channel = None
+        self.out_channel = None
+        self.reduce_in_channel = None
         self.t = None
         self.services_channel_dict = {}
 
@@ -41,13 +40,16 @@ class MapReduceHandler(object):
         while True:
             job = self.in_channel.pull_a_job()
             if job is not None:
-                logging.debug("Map-Reduce Service receives a job : %s", job.name)
+                logging.debug("Map-Reduce main Service receives a job: %s", job.to_json_str())
                 count = self.__process_map(job)
+                if count == 0:
+                    continue
                 reduce_jobs = {}
                 current_count = 0
                 while True:
                     ret_job = self.reduce_in_channel.pull_a_job()
                     if ret_job is not None:
+                        logging.debug("Reduce Service receives a job: %s", ret_job.to_json_str())
                         reduce_jobs.append(ret_job)
                         current_count +=1
                         if count == current_count:
