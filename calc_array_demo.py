@@ -10,15 +10,17 @@ from worker import Worker
 from standalone_channel import Standalone
 import logging
 import time
+import numpy as np
+import multiprocessing as mp
 
 logging.basicConfig(level=logging.DEBUG)
 
-test_array = np.random.randint(10,size=10000000000)
+test_array = np.random.randint(10,size=10000000)
 workers_num = 5
 
 
 class CalculatorService(MapReduceHandler):
-    def __process_map(self, job):
+    def process_map(self, job):
         if job.get_field("name", None) != "server":
             newjob = JobDescriptor()
             newjob.set_field("name", "client")
@@ -27,7 +29,6 @@ class CalculatorService(MapReduceHandler):
             logging.debug("CalculatorService emits a job: %s", newjob.to_json_str())
             return 0
         else:
-            self.out_channel = job.get_field("return_channel", None)
             size = job.get_field('array_size', 0)
             worker_num = len(self.services_channel_dict)
             sub_size = size / worker_num
@@ -42,15 +43,15 @@ class CalculatorService(MapReduceHandler):
                 newjob = JobDescriptor()
                 newjob.set_field("start", start)
                 newjob.set_field("end", end)
-                newjob.set_field("return_channel", self.reduce_in_channel)
                 # we can set job name as  "mini-calc"(all calc share 1 channel) or "mini-calc-x"(1 calc 1 channel)
                 newjob.set_field("name", "mini-calc")
                 newjob.set_field("status", "1")
-                self.reduce_out_channel.emit_a_job(newjob)
+                if newjob.name in self.services_channel_dict:
+                    self.services_channel_dict[newjob.name].emit_a_job(newjob)
                 logging.debug("CalculatorService emits a job: %s", newjob.to_json_str())
                 return worker_num
 
-    def __process_reduce(self, jobs):
+    def process_reduce(self, jobs):
         sum = 0
         for job in jobs:
             value = job.get_field("value", 0)
@@ -64,12 +65,10 @@ class MiniCalcWorker(Worker):
     def work(self, job):
         newjob = JobDescriptor()
         if job.get_field("name", None) != "mini-calc":
-            self.out_channel = job.get_field("return_channel", None)
             newjob.set_field("name", "server")
             newjob.set_field("status", "-1")
             self.out_channel.emit_a_job(newjob)
         else:
-            self.out_channel = job.get_field("return_channel", None)
             start = job.get_field("start", 0)
             end = job.get_field("end", 0)
             new_array = test_array[start:end]
@@ -98,7 +97,7 @@ class Client(unittest.TestCase):
     def process(self):
         t1 = time.time()
         self.serial_sum = np.sum(test_array)
-        logging.debug("serial calculation time: %d", time.time()-t1)
+        logging.debug("serial calculation time: %s", time.time()-t1)
         t1 = time.time()
         newjob = JobDescriptor()
         newjob.set_field("array_size", len(test_array))
@@ -109,7 +108,7 @@ class Client(unittest.TestCase):
             job = self.receive_channel.pull_a_job()
             logging.debug("Client receives a job: %s", job.to_json_str())
             if job is not None:
-                check(job)
+                self.check(job)
                 break
             else:
                 sleep(0.05)
@@ -121,7 +120,7 @@ class Client(unittest.TestCase):
         self.t.daemon = True
         self.t.start()
 
-class TestMapReduce(unittest.TestCase):
+class TestMapReduce(object):
 
     def test_mapreduce(self):
         client_out_channel = Standalone()
@@ -133,10 +132,18 @@ class TestMapReduce(unittest.TestCase):
         calculator_agent.out_channel = client_in_channel
         calculator_agent.in_channel = client_out_channel
 
+        calculator_agent.reduce_in_channel = Standalone()
+        calculator_agent.reduce_in_channel.init_channel()
+
+        workers_list = []
         for i in range(workers_num):
             worker = MiniCalcWorker("mini-calc")
+            worker.in_channel = Standalone()
+            worker.in_channel.init_channel()
+            worker.out_channel = calculator_agent.reduce_in_channel
             calculator_agent.register(worker)
             worker.run()
+            workers_list.append(worker)
 
         calculator_agent.run()
 
@@ -146,6 +153,10 @@ class TestMapReduce(unittest.TestCase):
 
         test_client.run()
         test_client.t.join()
+        for i in range(workers_num):
+            workers_list[i].t.join()
+        calculator_agent.t.join()
+
 
 
 if __name__ == '__main__':

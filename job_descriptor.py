@@ -15,8 +15,12 @@ class JobDescriptor(object):
         self.job[k] = v
         return self
 
-    def get_field(self, k):
-        return self.job.get(k, default=None)
+    def get_field(self, k, default_value=None):
+        return self.job.get(k, default_value)
 
     def to_json_str(self):
         return json.dumps(self.__dict__)
+
+    @property
+    def name(self):
+        return self.job.get("name")

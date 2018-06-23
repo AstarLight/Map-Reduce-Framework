@@ -5,7 +5,7 @@
 
 ''' standalone communication mode(IPC) '''
 
-from channel import channel
+from channel import Channel
 import multiprocessing as mp
 
 class Standalone(Channel):

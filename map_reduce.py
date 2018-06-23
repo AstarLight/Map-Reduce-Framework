@@ -7,9 +7,12 @@ import logging
 from time import sleep
 import multiprocessing as mp
 import numpy as np
+from abc import abstractmethod, ABCMeta
+from standalone_channel import Standalone
 
 
 class MapReduceHandler(object):
+
     def __init__(self):
         self.in_channel = None
         self.out_channel = None
@@ -17,13 +20,9 @@ class MapReduceHandler(object):
         self.t = None
         self.services_channel_dict = {}
 
-    def __dispatch(self, task):
-        for key in self.services_channel_dict:
-            self.services_channel_dict[key].emit_a_job(task)
-
     # map reduce core
     @abstractmethod
-    def __process_map(self, job):
+    def process_map(self, job):
         # 1. split a big job into several small tasks
         # 2. dispatch tasks to workers process/server
         # 3. wait for reduce result from workers(block)
@@ -32,7 +31,7 @@ class MapReduceHandler(object):
         raise NotImplementedError
 
     @abstractmethod
-    def __process_reduce(self, jobs):
+    def process_reduce(self, jobs):
         raise NotImplementedError
 
     def accept(self):
@@ -41,10 +40,10 @@ class MapReduceHandler(object):
             job = self.in_channel.pull_a_job()
             if job is not None:
                 logging.debug("Map-Reduce main Service receives a job: %s", job.to_json_str())
-                count = self.__process_map(job)
+                count = self.process_map(job)
                 if count == 0:
                     continue
-                reduce_jobs = {}
+                reduce_jobs = []
                 current_count = 0
                 while True:
                     ret_job = self.reduce_in_channel.pull_a_job()
@@ -54,7 +53,7 @@ class MapReduceHandler(object):
                         current_count +=1
                         if count == current_count:
                             logging.debug("We receive all reduce jobs!")
-                            process_reduce(reduce_jobs)
+                            self.process_reduce(reduce_jobs)
                             break
                     else:
                         sleep(0.05)
@@ -63,8 +62,7 @@ class MapReduceHandler(object):
 
     def register(self, service):
         if service.name not in self.services_channel_dict:
-            self.services_channel_dict[service.name] = service
-            self.services_channel_dict[service.name].in_channel.init()
+            self.services_channel_dict[service.name] = service.in_channel
         service.in_channel = self.services_channel_dict[service.name]
 
     def run(self):
