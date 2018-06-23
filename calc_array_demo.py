@@ -15,7 +15,7 @@ import multiprocessing as mp
 
 logging.basicConfig(level=logging.DEBUG)
 
-test_array = np.random.randint(10,size=10000000)
+test_array = np.random.randint(100,size=100000000)
 workers_num = 5
 
 
@@ -30,14 +30,15 @@ class CalculatorService(MapReduceHandler):
             return 0
         else:
             size = job.get_field('array_size', 0)
-            worker_num = len(self.services_channel_dict)
+            worker_num = self.workers_num
+            logging.debug("worker num is %s", worker_num)
             sub_size = size / worker_num
             start = 0
             end = 0
             for idx in range(worker_num):
                 start = end
                 if idx == worker_num -1:
-                    end = size - 1
+                    end = size
                 else:
                     end = end + sub_size
                 newjob = JobDescriptor()
@@ -45,11 +46,10 @@ class CalculatorService(MapReduceHandler):
                 newjob.set_field("end", end)
                 # we can set job name as  "mini-calc"(all calc share 1 channel) or "mini-calc-x"(1 calc 1 channel)
                 newjob.set_field("name", "mini-calc")
-                newjob.set_field("status", "1")
                 if newjob.name in self.services_channel_dict:
                     self.services_channel_dict[newjob.name].emit_a_job(newjob)
                 logging.debug("CalculatorService emits a job: %s", newjob.to_json_str())
-                return worker_num
+            return worker_num
 
     def process_reduce(self, jobs):
         sum = 0
@@ -59,6 +59,7 @@ class CalculatorService(MapReduceHandler):
         newjob = JobDescriptor()
         newjob.set_field("result", sum)
         newjob.set_field("name", "client")
+        newjob.set_field("status", "1")
         self.out_channel.emit_a_job(newjob)
 
 class MiniCalcWorker(Worker):
@@ -79,7 +80,7 @@ class MiniCalcWorker(Worker):
         self.out_channel.emit_a_job(newjob)
         logging.debug("MiniCalcWorker emits a job: %s", newjob.to_json_str())
 
-class Client(unittest.TestCase):
+class Client(object):
     def __init__(self):
         self.send_channel = None
         self.receive_channel = None
@@ -88,16 +89,17 @@ class Client(unittest.TestCase):
 
     def check(self, job):
         return_name = job.get_field("name", None)
-        self.assertEqual(return_name, "client")
-        calc_status = job.get_field("status", -1)
-        self.assertEqual(calc_status, "1")
+        assert return_name == "client"
+        calc_status = job.get_field("status", "-1")
+        assert calc_status == "1"
         final_sum = job.get_field("result", -1)
-        self.assertEqual(final_sum, self.serial_sum)
+        assert final_sum == self.serial_sum
 
     def process(self):
         t1 = time.time()
         self.serial_sum = np.sum(test_array)
         logging.debug("serial calculation time: %s", time.time()-t1)
+        logging.debug("serial calculation result: %d", self.serial_sum)
         t1 = time.time()
         newjob = JobDescriptor()
         newjob.set_field("array_size", len(test_array))
@@ -113,7 +115,8 @@ class Client(unittest.TestCase):
             else:
                 sleep(0.05)
 
-        logging.debug("parallel calculation time: %d", time.time() - t1)
+        logging.debug("parallel calculation time: %s", time.time() - t1)
+        logging.info("Pass MapReduce UnitTest!")
 
     def run(self):
         self.t = mp.Process(target=Client.process, args=(self,))
@@ -134,6 +137,8 @@ class TestMapReduce(object):
 
         calculator_agent.reduce_in_channel = Standalone()
         calculator_agent.reduce_in_channel.init_channel()
+
+        calculator_agent.workers_num = workers_num
 
         workers_list = []
         for i in range(workers_num):
@@ -160,4 +165,5 @@ class TestMapReduce(object):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    m = TestMapReduce()
+    m.test_mapreduce()

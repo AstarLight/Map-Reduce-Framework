@@ -19,6 +19,7 @@ class MapReduceHandler(object):
         self.reduce_in_channel = None
         self.t = None
         self.services_channel_dict = {}
+        self.workers_num = 0
 
     # map reduce core
     @abstractmethod
@@ -70,8 +71,5 @@ class MapReduceHandler(object):
         self.t.daemon = True
         self.t.start()
 
-    @property
-    def workers_num(self):
-        return len(self.services_channel_dict)
 
 
