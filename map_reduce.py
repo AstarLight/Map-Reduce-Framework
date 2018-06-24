@@ -63,7 +63,8 @@ class MapReduceHandler(object):
 
     def register(self, service):
         if service.name not in self.services_channel_dict:
-            self.services_channel_dict[service.name] = service.in_channel
+            self.services_channel_dict[service.name] = Standalone()
+            self.services_channel_dict[service.name].init_channel()
         service.in_channel = self.services_channel_dict[service.name]
 
     def run(self):
