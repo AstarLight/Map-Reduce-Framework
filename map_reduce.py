@@ -68,6 +68,7 @@ class MapReduceHandler(object):
             self.services_channel_dict[dict_service_name] = Standalone()
             self.services_channel_dict[dict_service_name].init_channel()
             service.in_channel = self.services_channel_dict[dict_service_name]
+            service.out_channel = self.reduce_in_channel
             self.reduce_channel_num += 1
         else:
             logging.warn("duplicated reduce channel name occurs!")

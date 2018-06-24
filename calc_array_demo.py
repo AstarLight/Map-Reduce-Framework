@@ -74,8 +74,8 @@ class MiniCalcWorker(Worker):
             start = job.get_field("start", 0)
             end = job.get_field("end", 0)
             new_array = test_array[start:end]
-            sum = np.sum(new_array)
-            newjob.set_field("value", sum)
+            sum_val = sum(new_array)
+            newjob.set_field("value", sum_val)
             newjob.set_field("name", "server")
             newjob.set_field("status", "1")
         self.out_channel.emit_a_job(newjob)
@@ -98,7 +98,7 @@ class Client(object):
 
     def process(self):
         t1 = time.time()
-        self.serial_sum = np.sum(test_array)
+        self.serial_sum = sum(test_array)
         logging.debug("serial calculation time: %s", time.time()-t1)
         logging.debug("serial calculation result: %d", self.serial_sum)
         t1 = time.time()
@@ -145,7 +145,6 @@ class TestMapReduce(object):
         for i in range(workers_num):
             worker_name = "mini-calc"
             worker = MiniCalcWorker(worker_name)
-            worker.out_channel = calculator_agent.reduce_in_channel
             calculator_agent.register(worker)
             worker.run()
             workers_list.append(worker)
