@@ -20,6 +20,7 @@ class MapReduceHandler(object):
         self.t = None
         self.services_channel_dict = {}
         self.workers_num = 0
+        self.reduce_channel_num = 0
 
     # map reduce core
     @abstractmethod
@@ -63,9 +64,13 @@ class MapReduceHandler(object):
 
     def register(self, service):
         if service.name not in self.services_channel_dict:
-            self.services_channel_dict[service.name] = Standalone()
-            self.services_channel_dict[service.name].init_channel()
-        service.in_channel = self.services_channel_dict[service.name]
+            dict_service_name = service.name + "_"  + str(self.reduce_channel_num)
+            self.services_channel_dict[dict_service_name] = Standalone()
+            self.services_channel_dict[dict_service_name].init_channel()
+            service.in_channel = self.services_channel_dict[dict_service_name]
+            self.reduce_channel_num += 1
+        else:
+            logging.warn("duplicated reduce channel name occurs!")
 
     def run(self):
         self.t = mp.Process(target=MapReduceHandler.accept, args=(self,))

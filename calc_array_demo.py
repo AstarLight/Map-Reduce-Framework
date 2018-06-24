@@ -46,8 +46,9 @@ class CalculatorService(MapReduceHandler):
                 newjob.set_field("end", end)
                 # we can set job name as  "mini-calc"(all calc share 1 channel) or "mini-calc-x"(1 calc 1 channel)
                 newjob.set_field("name", "mini-calc")
-                if newjob.name in self.services_channel_dict:
-                    self.services_channel_dict[newjob.name].emit_a_job(newjob)
+                out_channel_name = "mini-calc" + "_" + str(idx)
+                if out_channel_name in self.services_channel_dict:
+                    self.services_channel_dict[out_channel_name].emit_a_job(newjob)
                 logging.debug("CalculatorService emits a job: %s", newjob.to_json_str())
             return worker_num
 
@@ -65,7 +66,7 @@ class CalculatorService(MapReduceHandler):
 class MiniCalcWorker(Worker):
     def work(self, job):
         newjob = JobDescriptor()
-        if job.get_field("name", None) != "mini-calc":
+        if job.get_field("name", None) != self.name:
             newjob.set_field("name", "server")
             newjob.set_field("status", "-1")
             self.out_channel.emit_a_job(newjob)
@@ -142,9 +143,8 @@ class TestMapReduce(object):
 
         workers_list = []
         for i in range(workers_num):
-            worker = MiniCalcWorker("mini-calc")
-            worker.in_channel = Standalone()
-            worker.in_channel.init_channel()
+            worker_name = "mini-calc"
+            worker = MiniCalcWorker(worker_name)
             worker.out_channel = calculator_agent.reduce_in_channel
             calculator_agent.register(worker)
             worker.run()
